@@ -171,6 +171,7 @@ After partitioning, you'll need to format the partitions and continue with the A
   ```
 
 ## 2 Installing and updating
+### 2.1 check mirrors
 We're going to use reflector to update our mirrors. We'll have to first update our packages then install reflector.
 ```sh
 # Sync pacman mirrors
@@ -190,11 +191,10 @@ reflector --country 'United States,Canada,Germany,France,United Kingdom,Netherla
           --sort country \
           --save /etc/pacman.d/mirrorlist
 ```
-### 2.1 check mirrors
+Check the new mirror list.
 ```sh
 cat /etc/pacman.d/mirrorlist
 ```
-Modify mirrors as desired. [Mirror List](https://wiki.archlinux.org/title/Mirrors)
 
 ### 2.2 Install essential packages
 
@@ -668,3 +668,358 @@ reboot
 - **Backup Important Data:** Before making changes to the bootloader, it's wise to backup any important data.
 
 ---
+
+## 5. Create the main user
+We'll create the main user we'll call `someone`. 
+
+Certainly! I'll guide you through the process of creating a user named **`someone`** who can use `sudo` commands and SSH into the machine. This involves:
+
+1. **Creating the user `someone`**
+2. **Setting a password for `someone`**
+3. **Adding `someone` to the `wheel` group for `sudo` privileges**
+4. **Configuring `sudoers` to allow `wheel` group members to use `sudo`**
+5. **Ensuring SSH access for `someone`**
+6. **(Optional) Setting up SSH key-based authentication for enhanced security**
+
+Let's proceed step by step.
+
+---
+
+## **Step 1: Create the User `someone`**
+
+Create a new user account named `someone` using the `useradd` command.
+
+```bash
+sudo useradd -m -G users someone
+```
+
+- **Explanation:**
+  - `sudo`: Runs the command with administrative privileges.
+  - `useradd`: Command to add a new user.
+  - `-m`: Creates the user's home directory at `/home/someone`.
+  - `-G users`: Adds `someone` to the `users` group (default group for regular users).
+
+---
+
+## **Step 2: Set a Password for `someone`**
+
+Set a password for the new user so they can log in.
+
+```bash
+sudo passwd someone
+```
+
+- **You will be prompted to enter and confirm the new password for `someone`.**
+
+---
+
+## **Step 3: Add `someone` to the `wheel` Group for `sudo` Privileges**
+
+The `wheel` group is commonly used in Arch Linux to grant `sudo` privileges.
+
+```bash
+sudo usermod -aG wheel someone
+```
+
+- **Explanation:**
+  - `usermod`: Command to modify a user account.
+  - `-aG wheel`: Adds (`-a`) the user to the `wheel` group without removing them from other groups.
+
+---
+
+## **Step 4: Configure `sudoers` to Allow `wheel` Group Members to Use `sudo`**
+
+By default, members of the `wheel` group may not have `sudo` privileges until configured.
+
+### **4.1 Edit the `sudoers` File Safely Using `visudo`**
+
+Use `visudo` to edit the `/etc/sudoers` file safely.
+
+```bash
+sudo visudo
+```
+
+**Note:** `visudo` checks the syntax before saving, preventing you from locking yourself out due to configuration errors.
+
+### **4.2 Modify the `sudoers` File**
+
+Locate the following line:
+
+```bash
+# %wheel ALL=(ALL) ALL
+```
+
+**Uncomment the line by removing the `#`:**
+
+```bash
+%wheel ALL=(ALL) ALL
+```
+
+- **This allows all members of the `wheel` group to execute any command using `sudo`.**
+
+**Save and Exit:**
+
+- If using `nano` as the editor (default in Arch Linux for `visudo`), press `Ctrl + X`, then `Y`, and `Enter` to save the changes.
+
+---
+
+## **Step 5: Ensure SSH Access for `someone`**
+
+Since SSH is already installed and running, you need to ensure that `someone` can log in via SSH.
+
+### **5.1 Verify SSH Configuration**
+
+Check the SSH daemon configuration to ensure it allows user logins.
+
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+**Key Settings to Verify:**
+
+- **Allow Users to Log In:**
+
+  Ensure the following line is either commented out or includes `someone`:
+
+  ```conf
+  #AllowUsers
+  ```
+
+  - If you wish to restrict SSH access to specific users, you can specify:
+
+    ```conf
+    AllowUsers someone
+    ```
+
+- **Disable Root Login (Recommended):**
+
+  ```conf
+  PermitRootLogin no
+  ```
+
+- **Password Authentication:**
+
+  ```conf
+  PasswordAuthentication yes
+  ```
+
+  - Ensure this is set to `yes` if you want to allow password authentication.
+  - **Note:** For enhanced security, consider using SSH key-based authentication and setting this to `no`.
+
+**Save and Exit:**
+
+- Press `Ctrl + X`, then `Y`, and `Enter`.
+
+### **5.2 Restart the SSH Daemon**
+
+Apply the changes by restarting the SSH service.
+
+```bash
+sudo systemctl restart sshd
+```
+
+---
+
+## **Step 6: (Optional) Set Up SSH Key-Based Authentication for `someone`**
+
+For improved security over password authentication, set up SSH key-based authentication.
+
+### **6.1 Generate an SSH Key Pair on Your Local Machine**
+
+On the client machine (from which you'll SSH into the server), generate an SSH key pair.
+
+```bash
+ssh-keygen -t ed25519 -C "someone@your_machine"
+```
+
+- **Explanation:**
+  - `-t ed25519`: Uses the Ed25519 algorithm for the key pair (more secure and faster).
+  - `-C "someone@your_machine"`: Adds a comment to the key for identification.
+
+**Follow the Prompts:**
+
+- **Save Location:** Press `Enter` to accept the default location (`~/.ssh/id_ed25519`).
+- **Passphrase:** Enter a passphrase if desired, or press `Enter` for no passphrase.
+
+### **6.2 Copy the Public Key to the Server**
+
+Use `ssh-copy-id` to copy the public key to the server for user `someone`.
+
+```bash
+ssh-copy-id someone@your_server_ip
+```
+
+- **Replace `your_server_ip` with the actual IP address of your Arch Linux machine.**
+- **Enter `someone`'s password when prompted.**
+
+**Alternatively, Manually Copy the Public Key:**
+
+1. **Display the Public Key:**
+
+   ```bash
+   cat ~/.ssh/id_ed25519.pub
+   ```
+
+2. **On the Server, as User `someone`:**
+
+   - Create the `.ssh` directory:
+
+     ```bash
+     mkdir -p ~/.ssh
+     chmod 700 ~/.ssh
+     ```
+
+   - Add the public key to `authorized_keys`:
+
+     ```bash
+     echo 'your_public_key_contents' >> ~/.ssh/authorized_keys
+     chmod 600 ~/.ssh/authorized_keys
+     ```
+
+   - Replace `'your_public_key_contents'` with the actual public key from the client machine.
+
+### **6.3 Disable Password Authentication (Optional but Recommended)**
+
+After confirming that key-based authentication works, you can disable password authentication for SSH.
+
+**Edit the SSH Daemon Configuration:**
+
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+**Set the Following:**
+
+```conf
+PasswordAuthentication no
+```
+
+**Save and Exit**, then **Restart `sshd`:**
+
+```bash
+sudo systemctl restart sshd
+```
+
+---
+
+## **Step 7: Test SSH Access as `someone`**
+
+From your client machine, attempt to SSH into the server as `someone`.
+
+### **7.1 Using SSH Key Authentication**
+
+```bash
+ssh someone@your_server_ip
+```
+
+- **If you set up SSH keys correctly, you should log in without being prompted for a password.**
+
+### **7.2 Verify `sudo` Privileges**
+
+Once logged in as `someone`, test `sudo`:
+
+```bash
+sudo ls /root
+```
+
+- **You should be prompted for `someone`'s password.**
+- **After entering the password, the command should execute successfully if `someone` has `sudo` privileges.**
+
+---
+
+## **Security Considerations**
+
+- **Strong Passwords:** Ensure `someone` has a strong password if password authentication is enabled.
+- **SSH Keys:** Prefer SSH key-based authentication over passwords for increased security.
+- **Firewall Configuration:** Ensure that your firewall (if configured) allows SSH connections.
+- **Regular Updates:** Keep your system updated to receive the latest security patches.
+
+---
+
+## **Additional Information**
+
+### **Check User Groups**
+
+Verify that `someone` is in the correct groups:
+
+```bash
+groups someone
+```
+
+- **Expected Output:** `someone wheel users`
+
+### **Set Default Shell (Optional)**
+
+Ensure `someone` has a default shell (usually `/bin/bash`):
+
+```bash
+sudo chsh -s /bin/bash someone
+```
+
+### **Configure Firewall (If Applicable)**
+
+If you're using a firewall, ensure SSH traffic is allowed.
+
+**Using `ufw`:**
+
+```bash
+sudo ufw allow ssh
+```
+
+**Using `nftables` or `iptables`:**
+
+Ensure port `22` (or your custom SSH port) is allowed in your firewall rules.
+
+---
+
+## **Summary of Commands**
+
+```bash
+# Step 1: Create user 'someone'
+sudo useradd -m -G users someone
+
+# Step 2: Set password for 'someone'
+sudo passwd someone
+
+# Step 3: Add 'someone' to 'wheel' group
+sudo usermod -aG wheel someone
+
+# Step 4: Configure 'sudoers' file
+sudo visudo
+# Uncomment '%wheel ALL=(ALL) ALL'
+
+# Step 5: Ensure SSH access
+sudo nano /etc/ssh/sshd_config
+# Ensure 'PasswordAuthentication yes' is set
+sudo systemctl restart sshd
+
+# Step 6: Set up SSH keys (on client machine)
+ssh-keygen -t ed25519 -C "someone@your_machine"
+ssh-copy-id someone@your_server_ip
+
+# (Optional) Disable password authentication
+sudo nano /etc/ssh/sshd_config
+# Set 'PasswordAuthentication no'
+sudo systemctl restart sshd
+
+# Step 7: Test SSH access
+ssh someone@your_server_ip
+sudo ls /root
+```
+
+---
+
+## **Conclusion**
+
+By following these steps, you have:
+
+- Created a new user `someone`.
+- Granted `someone` `sudo` privileges via the `wheel` group.
+- Configured SSH to allow `someone` to log in.
+- Optionally enhanced security by setting up SSH key-based authentication.
+
+Your user `someone` should now be able to execute `sudo` commands and SSH into the machine securely.
+
+---
+
+**If you have any questions or need further assistance, feel free to ask!**
