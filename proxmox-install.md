@@ -1,3 +1,23 @@
+# Arch Linux Setup Guide
+## 0.1 Proxmox Initial Setup
+
+### Download ISO
+* Find the iso at the [Arch Linux Mirrors Page](https://archlinux.org/download/).
+* Find a good mirror for the iso you want, then copy the link to the download and paste into proxmox's iso downloader.
+* Copy the SHA256 hash from the mirror page and paste it into the hash field on the ISO downloader.
+
+### Pre Install VM Setup
+Enabling EFI for Arch as guest is optional. If you want to install Arch Linux in EFI mode inside Proxmox, you must change the firmware mode for the virtual machine. This must be done before installing Arch as guest, changing the option afterwards will result in unbootable machine unless the setting is reverted.
+
+* Select OVMF (UEFI) over SeaBIOS in Hardware > BIOS (cf. BIOS and UEFI).
+* Start the virtual machine.
+* Immediately press ESC to enter the firmware setup.
+* Disable the secure boot else the ArchLinux ISO won't be detected.
+* Stop the virtual machine.
+* Edit the boot order option to put the virtual CDROM player before your disk (not by default).
+* Start the virtual machine.
+* (Optional) [Verify the boot mode](https://wiki.archlinux.org/title/Installation_guide#Verify_the_boot_mode).
+
 ## 1.9 Disk Partition Setup 
 To set up your partitions on a 450 GB drive with fdisk, follow these detailed steps. This will create:
 
