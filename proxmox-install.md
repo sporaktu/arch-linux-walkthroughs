@@ -18,6 +18,9 @@ Enabling EFI for Arch as guest is optional. If you want to install Arch Linux in
 * Start the virtual machine.
 * (Optional) [Verify the boot mode](https://wiki.archlinux.org/title/Installation_guide#Verify_the_boot_mode).
 
+## 1.7 Verify Internet Connection
+Internet should be enabled by default on proxmox. Check for an ip with `ip addr` and `ping archlinux.org` to check connection status.
+
 ## 1.9 Disk Partition Setup 
 To set up your partitions on a 450 GB drive with fdisk, follow these detailed steps. This will create:
 
@@ -131,32 +134,6 @@ w
 
 This writes the partition table to the disk and exits fdisk.
 
-**Summary of Commands:**
-
-```bash
-fdisk /dev/sda
-g
-n
-<Enter>
-<Enter>
-+1G
-t
-<Enter>
-1
-n
-<Enter>
-<Enter>
-+8G
-t
-<Enter>
-19
-n
-<Enter>
-<Enter>
-<Enter>
-w
-```
-
 **Next Steps:**
 
 After partitioning, you'll need to format the partitions and continue with the Arch Linux installation:
@@ -193,4 +170,99 @@ After partitioning, you'll need to format the partitions and continue with the A
   mount /dev/sda1 /mnt/boot
   ```
 
-Now you're ready to proceed with the rest of the Arch Linux installation.
+## 2 Installing and updating
+We're going to use reflector to update our mirrors. We'll have to first update our packages then install reflector.
+```sh
+# Sync pacman mirrors
+pacman -Sy
+# Install reflector
+pacman -S reflector
+```
+Backup your current mirrorlist
+```sh
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+```
+Generate a new mirrorlist using Reflector focused on NA and European servers.
+```sh
+reflector --country 'United States,Canada,Germany,France,United Kingdom,Netherlands,Sweden,Finland,Denmark,Norway,Austria,Belgium,Switzerland,Spain,Italy' \
+          --age 12 \
+          --protocol https \
+          --sort country \
+          --save /etc/pacman.d/mirrorlist
+```
+### 2.1 check mirrors
+```sh
+cat /etc/pacman.d/mirrorlist
+```
+Modify mirrors as desired. [Mirror List](https://wiki.archlinux.org/title/Mirrors)
+
+### 2.2 Install essential packages
+
+Install the base packages with pacstrap.
+```sh
+pacstrap -K /mnt base linux linux-firmware
+```
+
+## Configuring the system
+### 3.1 Fstab
+
+Generate an fstab file (use -U or -L to define by UUID or labels, respectively):
+```sh
+genfstab -U /mnt >> /mnt/etc/fstab
+```
+Check the resulting /mnt/etc/fstab file, and edit it in case of errors.
+
+### 3.2 Mount into the newly setup system
+Mounting into `chroot` will allow you to install programs on the OS that will be booted after finishing the install.
+```sh
+arch-chroot /mnt
+```
+
+### 3.3 Timezone
+Set the time zone:
+```sh
+ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
+```
+Run hwclock(8) to generate /etc/adjtime:
+```sh
+hwclock --systohc
+```
+This command assumes the hardware clock is set to UTC
+
+### 3.4 Localization
+
+Edit /etc/locale.gen and uncomment en_US.UTF-8 UTF-8 and other needed UTF-8 locales. Generate the locales by running:
+```sh
+locale-gen
+```
+Create the locale.conf file, and set the LANG variable accordingly:
+```sh
+touch /etc/locale.conf
+vim /etc/locale.conf
+```
+Uncomment `LANG=en_US.UTF-8`
+
+### 3.5 Network configuration
+Create the hostname file:
+```sh
+touch  /etc/hostname
+vim /etc/hostname
+
+# set your hostname
+yourhostname
+```
+Complete the network configuration for the newly installed environment. 
+
+Install a network manager, like NetworkManager CLI
+```sh
+pacman -S networkmanager
+
+# Enable and start NetworkManager.service
+systemctl enable NetworkManager.service
+systemctl start NetworkManager.service
+```
+### 3.7 Root password
+Set the root password:
+```sh
+passwd
+```
